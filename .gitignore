@@ -1,0 +1,13 @@
+# Do not commit local credentials or ingestion payloads.
+.env
+.env.*
+*.pem
+*.pfx
+*.key
+*secret*
+*credential*
+*token-cache*
+__pycache__/
+.DS_Store
+local-data/
+**/azure-profile/

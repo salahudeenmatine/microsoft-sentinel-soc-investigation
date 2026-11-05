@@ -1,0 +1,17 @@
+// DATA VALIDATION — query 1: expected 36 ingested events.
+OktaV2_CL
+| count
+
+// DATA VALIDATION — query 2: validate the fields used in the investigation.
+// Run this section on its own.
+OktaV2_CL
+| summarize
+    TotalEvents = count(),
+    MissingTimes = countif(isnull(OriginalEventTime)),
+    MissingUsers = countif(isempty(ActorUsername)),
+    MissingIPs = countif(isempty(SrcIpAddr))
+
+// DATA VALIDATION — query 3: inspect schema and field types.
+// Run this section on its own.
+OktaV2_CL
+| getschema

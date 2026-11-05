@@ -1,0 +1,21 @@
+// Rebuilt after the lab from my recorded test. When I ran these inputs in the lab: 0 rows (actions spread over 14 minutes).
+let Sensitive = datatable(OriginalEventTime: datetime, ActorUsername: string, SrcIpAddr: string, EventOriginalType: string)
+[
+    datetime(2026-10-02 10:00:00), "test@lab.com", "203.0.113.10", "user.account.privilege.grant",
+    datetime(2026-10-02 10:07:00), "test@lab.com", "203.0.113.10", "system.api_token.create",
+    datetime(2026-10-02 10:14:00), "test@lab.com", "203.0.113.10", "user.mfa.factor.reset_all"
+];
+Sensitive
+| project ActorUsername, SrcIpAddr, WindowStart = OriginalEventTime
+| join kind=inner (Sensitive) on ActorUsername, SrcIpAddr
+| where OriginalEventTime >= WindowStart
+    and OriginalEventTime <= WindowStart + 5m
+| summarize
+    TotalActions = count(),
+    UniqueActions = dcount(EventOriginalType),
+    FirstAction = min(OriginalEventTime),
+    LastAction = max(OriginalEventTime)
+    by ActorUsername, SrcIpAddr, WindowStart
+| where UniqueActions >= 3
+| summarize arg_max(TotalActions, *) by ActorUsername, SrcIpAddr
+| project ActorUsername, SrcIpAddr, TotalActions, UniqueActions, FirstAction, LastAction

@@ -1,0 +1,35 @@
+// FIRST LEAD: who reset all MFA methods?
+OktaV2_CL
+| where EventOriginalType == "user.mfa.factor.reset_all"
+| project OriginalEventTime, ActorUsername, SrcIpAddr, EventResult, OriginalTarget, EventMessage
+
+// MIRAGE'S ACTIVITY — run separately.
+OktaV2_CL
+| where ActorUsername == "mirage@pkwork.onmicrosoft.com"
+| project OriginalEventTime, EventOriginalType, EventMessage, SrcIpAddr
+| sort by OriginalEventTime asc
+
+// IDENTIFY ORIGINAL TARGETS — run separately.
+OktaV2_CL
+| where ActorUsername == "mirage@pkwork.onmicrosoft.com"
+| project OriginalEventTime, EventOriginalType, EventMessage, OriginalTarget
+| sort by OriginalEventTime asc
+
+// SOURCE IP CORRELATION — run separately. TEST-NET-2 simulated IP.
+OktaV2_CL
+| where SrcIpAddr == "198.51.100.42"
+| project OriginalEventTime, ActorUsername, EventOriginalType, EventResult
+| sort by OriginalEventTime asc
+
+// EVENTS BEFORE MIRAGE SESSION — run separately.
+OktaV2_CL
+| where OriginalEventTime < datetime(2026-10-02 10:43:55)
+| project OriginalEventTime, ActorUsername, EventOriginalType, EventResult, SrcIpAddr
+| sort by OriginalEventTime desc
+
+// PRIYA'S ACTIVITY AND EVENTS TARGETING PRIYA — run separately.
+OktaV2_CL
+| where ActorUsername == "psharma@pkwork.onmicrosoft.com"
+    or tostring(OriginalTarget) contains "psharma@pkwork.onmicrosoft.com"
+| project OriginalEventTime, ActorUsername, EventOriginalType, EventMessage, SrcIpAddr
+| sort by OriginalEventTime asc

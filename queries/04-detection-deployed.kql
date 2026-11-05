@@ -1,0 +1,27 @@
+let Sensitive = materialize(
+    OktaV2_CL
+    | where EventOriginalType in (
+        "user.account.privilege.grant",
+        "system.api_token.create",
+        "user.mfa.factor.deactivate",
+        "user.mfa.factor.reset_all",
+        "user.mfa.factor.update"
+    )
+    | where EventResult == "Success"
+    | project TimeGenerated, OriginalEventTime, ActorUsername, SrcIpAddr, EventOriginalType
+);
+Sensitive
+| project ActorUsername, SrcIpAddr, WindowStart = OriginalEventTime
+| join kind=inner (Sensitive) on ActorUsername, SrcIpAddr
+| where OriginalEventTime >= WindowStart
+    and OriginalEventTime <= WindowStart + 5m
+| summarize
+    TotalActions = count(),
+    UniqueActions = dcount(EventOriginalType),
+    FirstAction = min(OriginalEventTime),
+    LastAction = max(OriginalEventTime),
+    TimeGenerated = max(TimeGenerated)
+    by ActorUsername, SrcIpAddr, WindowStart
+| where UniqueActions >= 3
+| summarize arg_max(TotalActions, *) by ActorUsername, SrcIpAddr
+| project TimeGenerated, ActorUsername, SrcIpAddr, TotalActions, UniqueActions, FirstAction, LastAction

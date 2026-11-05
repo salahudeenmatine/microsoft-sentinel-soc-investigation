@@ -1,0 +1,78 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspace": {
+      "type": "String"
+    }
+  },
+  "resources": [
+    {
+      "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/',guid(resourceGroup().id, parameters('workspace'), 'Suspicious Okta Privileged Activity'))]",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',guid(resourceGroup().id, parameters('workspace'), 'Suspicious Okta Privileged Activity'))]",
+      "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+      "kind": "Scheduled",
+      "apiVersion": "2023-12-01-preview",
+      "properties": {
+        "displayName": "Suspicious Okta Privileged Activity",
+        "description": "Detects 3 or more different successful sensitive Okta actions by the same account and IP within 5 minutes.",
+        "severity": "High",
+        "enabled": false,
+        "query": "let Sensitive = materialize(\n    OktaV2_CL\n    | where EventOriginalType in (\n        \"user.account.privilege.grant\",\n        \"system.api_token.create\",\n        \"user.mfa.factor.deactivate\",\n        \"user.mfa.factor.reset_all\",\n        \"user.mfa.factor.update\"\n    )\n    | where EventResult == \"Success\"\n    | project TimeGenerated, OriginalEventTime, ActorUsername, SrcIpAddr, EventOriginalType\n);\nSensitive\n| project ActorUsername, SrcIpAddr, WindowStart = OriginalEventTime\n| join kind=inner (Sensitive) on ActorUsername, SrcIpAddr\n| where OriginalEventTime >= WindowStart\n    and OriginalEventTime <= WindowStart + 5m\n| summarize\n    TotalActions = count(),\n    UniqueActions = dcount(EventOriginalType),\n    FirstAction = min(OriginalEventTime),\n    LastAction = max(OriginalEventTime),\n    TimeGenerated = max(TimeGenerated)\n    by ActorUsername, SrcIpAddr, WindowStart\n| where UniqueActions >= 3\n| summarize arg_max(TotalActions, *) by ActorUsername, SrcIpAddr\n| project TimeGenerated, ActorUsername, SrcIpAddr, TotalActions, UniqueActions, FirstAction, LastAction",
+        "queryFrequency": "P1D",
+        "queryPeriod": "P3D",
+        "triggerOperator": "GreaterThan",
+        "triggerThreshold": 0,
+        "suppressionDuration": "P1D",
+        "suppressionEnabled": true,
+        "startTimeUtc": null,
+        "tactics": [
+          "PrivilegeEscalation",
+          "Persistence"
+        ],
+        "techniques": [],
+        "subTechniques": [],
+        "alertRuleTemplateName": null,
+        "incidentConfiguration": {
+          "createIncident": true,
+          "groupingConfiguration": {
+            "enabled": false,
+            "reopenClosedIncident": false,
+            "lookbackDuration": "PT5H",
+            "matchingMethod": "AllEntities",
+            "groupByEntities": [],
+            "groupByAlertDetails": [],
+            "groupByCustomDetails": []
+          }
+        },
+        "eventGroupingSettings": {
+          "aggregationKind": "SingleAlert"
+        },
+        "alertDetailsOverride": null,
+        "customDetails": {},
+        "entityMappings": [
+          {
+            "entityType": "Account",
+            "fieldMappings": [
+              {
+                "identifier": "FullName",
+                "columnName": "ActorUsername"
+              }
+            ]
+          },
+          {
+            "entityType": "IP",
+            "fieldMappings": [
+              {
+                "identifier": "Address",
+                "columnName": "SrcIpAddr"
+              }
+            ]
+          }
+        ],
+        "sentinelEntitiesMappings": null,
+        "templateVersion": null
+      }
+    }
+  ]
+}

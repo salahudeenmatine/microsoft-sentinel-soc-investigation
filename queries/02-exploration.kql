@@ -1,0 +1,15 @@
+// EVENT DISTRIBUTION — 9 event types across 36 events.
+OktaV2_CL
+| summarize EventCount = count() by EventOriginalType
+| sort by EventCount desc
+
+// USER / IP COMPARISON — run this query separately.
+// dcount() is an approximate distinct count function.
+OktaV2_CL
+| summarize TotalEvents = count(), UniqueIPs = dcount(SrcIpAddr) by ActorUsername
+| sort by UniqueIPs desc
+
+// ORIGINAL EVENT TIMELINE — run this query separately.
+OktaV2_CL
+| project OriginalEventTime, ActorUsername, EventOriginalType, EventResult, SrcIpAddr
+| sort by OriginalEventTime asc
